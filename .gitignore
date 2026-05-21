@@ -1,0 +1,31 @@
+# Databases
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node.js
+node_modules/
+dist/
+
+# Go
+/services/playlist-service/playlist-service
+
+# Uploads
+/services/music-service/uploads/*
+!/services/music-service/uploads/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
