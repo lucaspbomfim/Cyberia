@@ -1,47 +1,51 @@
-# 🎵 CYBERIA
+# CYBERIA
 
-Music player self-hosted — faça upload das suas músicas e escute via browser.
+Player de música self-hosted feito como projeto final de Projeto e Arquitetura de Sistemas (UNIFOR).
 
-**Projeto final — Projeto e Arquitetura de Sistemas (UNIFOR)**
+Cada um ficou com um serviço. O frontend consome os três via REST.
 
 ## Equipe
 
-| Membro | Serviço | Linguagem |
-|--------|---------|-----------|
-| Lucas | Music Service + Frontend | Node.js / React |
-| Arthur | User Service | Python / FastAPI |
-| Paulo | Playlist Service | Go / Gin |
+| Membro | Responsabilidade |
+|--------|-----------------|
+| Lucas | Music Service + Frontend |
+| Arthur | User Service |
+| Paulo | Playlist Service |
 
-## Arquitetura
+## Stack
 
-```
-Frontend (React :3000)
-   ├── User Service    (Python/FastAPI  :8001)
-   ├── Music Service   (Node.js/Express :8002)
-   └── Playlist Service (Go/Gin         :8003)
-```
+- **User Service** — Python / FastAPI (porta 8001)
+- **Music Service** — Node.js / Express (porta 8002)
+- **Playlist Service** — Go / Gin (porta 8003)
+- **Frontend** — React (porta 3000)
 
-Cada serviço possui seu próprio banco de dados SQLite e se comunica com os demais via REST/HTTP.
+Cada serviço tem seu próprio SQLite.
 
-## Como rodar
+## Rodando local
 
+**User Service**
 ```bash
-# User Service (terminal 1)
 cd services/user-service
 pip install -r requirements.txt
 uvicorn main:app --port 8001
+```
 
-# Music Service (terminal 2)
+**Music Service**
+```bash
 cd services/music-service
 npm install
 npm start
+```
 
-# Playlist Service (terminal 3)
+**Playlist Service**
+```bash
 cd services/playlist-service
 go mod download
 go run main.go
+```
 
-# Frontend (terminal 4)
+**Frontend**
+```bash
 cd frontend
 npm install
 npm start
@@ -52,9 +56,8 @@ npm start
 ```
 cyberia/
 ├── services/
-│   ├── user-service/          # Python/FastAPI — Arthur
-│   ├── music-service/         # Node.js/Express — Lucas
-│   └── playlist-service/      # Go/Gin — Paulo
-├── frontend/                  # React — Lucas
-└── README.md
+│   ├── user-service/       # Arthur
+│   ├── music-service/      # Lucas
+│   └── playlist-service/   # Paulo
+└── frontend/               # Lucas
 ```
