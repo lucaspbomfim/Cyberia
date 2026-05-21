@@ -9,6 +9,8 @@ const { validateUser } = require('../userClient');
 const router = express.Router();
 
 const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads');
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
 const ALLOWED_EXT = new Set(['.mp3', '.wav', '.ogg', '.flac']);
 const MIME = {
   '.mp3': 'audio/mpeg',
@@ -16,6 +18,13 @@ const MIME = {
   '.ogg': 'audio/ogg',
   '.flac': 'audio/flac',
 };
+const MAX_TEXT = 500;
+
+function parseId(raw) {
+  if (typeof raw !== 'string' || !/^\d+$/.test(raw)) return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isInteger(n) && n >= 1 && n <= Number.MAX_SAFE_INTEGER ? n : null;
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -26,12 +35,27 @@ const upload = multer({
   },
 });
 
+function uploadSingle(req, res, next) {
+  upload.single('file')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ error: 'file too large' });
+      }
+      return res.status(400).json({ error: `upload error: ${err.code.toLowerCase()}` });
+    }
+    if (err) return res.status(500).json({ error: 'upload failed' });
+    next();
+  });
+}
+
 router.get('/songs', (req, res) => {
   const { user_id } = req.query;
-  if (user_id) {
+  if (user_id !== undefined) {
+    const uid = parseId(user_id);
+    if (uid === null) return res.status(400).json({ error: 'invalid user_id' });
     const rows = db
       .prepare('SELECT id, title, artist, user_id, created_at FROM songs WHERE user_id = ? ORDER BY id')
-      .all(user_id);
+      .all(uid);
     return res.json(rows);
   }
   const rows = db
@@ -41,21 +65,28 @@ router.get('/songs', (req, res) => {
 });
 
 router.get('/songs/:id', (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) return res.status(404).json({ error: 'song not found' });
   const row = db
     .prepare('SELECT id, title, artist, file_path, user_id, created_at FROM songs WHERE id = ?')
-    .get(req.params.id);
+    .get(id);
   if (!row) return res.status(404).json({ error: 'song not found' });
   res.json(row);
 });
 
-router.post('/songs', upload.single('file'), async (req, res) => {
-  const { title, artist, user_id } = req.body;
+router.post('/songs', uploadSingle, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'missing or invalid file' });
+
+  const title = (req.body.title || '').trim().slice(0, MAX_TEXT);
+  const artistRaw = (req.body.artist || '').trim().slice(0, MAX_TEXT);
+  const artist = artistRaw || 'Unknown';
+  const uid = parseId(req.body.user_id);
+
   if (!title) return res.status(400).json({ error: 'missing field title' });
-  if (!user_id) return res.status(400).json({ error: 'missing field user_id' });
+  if (uid === null) return res.status(400).json({ error: 'missing or invalid user_id' });
 
   try {
-    const valid = await validateUser(user_id);
+    const valid = await validateUser(uid);
     if (!valid) return res.status(400).json({ error: 'invalid user_id' });
   } catch (e) {
     if (e.code === 'USER_SERVICE_DOWN') {
@@ -78,7 +109,7 @@ router.post('/songs', upload.single('file'), async (req, res) => {
   try {
     const result = db
       .prepare('INSERT INTO songs (title, artist, file_path, user_id) VALUES (?, ?, ?, ?)')
-      .run(title, artist || 'Unknown', filePath, parseInt(user_id, 10));
+      .run(title, artist, filePath, uid);
     row = db
       .prepare('SELECT id, title, artist, user_id, created_at FROM songs WHERE id = ?')
       .get(result.lastInsertRowid);
@@ -91,26 +122,41 @@ router.post('/songs', upload.single('file'), async (req, res) => {
 });
 
 router.get('/songs/:id/stream', (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) return res.status(404).json({ error: 'song not found' });
   const row = db
     .prepare('SELECT file_path FROM songs WHERE id = ?')
-    .get(req.params.id);
+    .get(id);
   if (!row) return res.status(404).json({ error: 'song not found' });
-  if (!fs.existsSync(row.file_path)) {
-    return res.status(404).json({ error: 'file missing on disk' });
-  }
+
   const ext = path.extname(row.file_path).toLowerCase();
   res.setHeader('Content-Type', MIME[ext] || 'application/octet-stream');
-  fs.createReadStream(row.file_path).pipe(res);
+
+  const stream = fs.createReadStream(row.file_path);
+  stream.on('error', (err) => {
+    if (!res.headersSent) {
+      res.removeHeader('Content-Type');
+      return res.status(404).json({ error: 'file missing on disk' });
+    }
+    res.destroy(err);
+  });
+  stream.pipe(res);
 });
 
 router.delete('/songs/:id', (req, res) => {
-  const row = db
-    .prepare('SELECT file_path FROM songs WHERE id = ?')
-    .get(req.params.id);
-  if (!row) return res.status(404).json({ error: 'song not found' });
-  db.prepare('DELETE FROM songs WHERE id = ?').run(req.params.id);
-  fs.promises.unlink(row.file_path).catch((e) => {
-    console.warn(`falha ao remover arquivo ${row.file_path}:`, e.message);
+  const id = parseId(req.params.id);
+  if (id === null) return res.status(404).json({ error: 'song not found' });
+  let filePath;
+  try {
+    const row = db.prepare('SELECT file_path FROM songs WHERE id = ?').get(id);
+    if (!row) return res.status(404).json({ error: 'song not found' });
+    filePath = row.file_path;
+    db.prepare('DELETE FROM songs WHERE id = ?').run(id);
+  } catch (e) {
+    return res.status(500).json({ error: 'internal error' });
+  }
+  fs.promises.unlink(filePath).catch((e) => {
+    console.warn(`falha ao remover arquivo ${filePath}:`, e.message);
   });
   res.status(204).send();
 });
