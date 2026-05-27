@@ -59,5 +59,5 @@ cyberia/
 │   ├── user-service/       # Arthur
 │   ├── music-service/      # Lucas
 │   └── playlist-service/   # Paulo
-└── frontend/               # Lucas
+└── frontend/               # Paulo e Lucas
 ```
