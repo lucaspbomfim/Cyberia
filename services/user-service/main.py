@@ -1,18 +1,5 @@
 <<<<<<< HEAD
-# ─────────────────────────────────────────────────────────────────────────────
-# CORREÇÃO NECESSÁRIA: main.py do user-service
-#
-# PROBLEMA:
-#   O user-service (FastAPI) não tem CORS configurado.
-#   Isso impede que o navegador (frontend na porta 3000) consiga
-#   fazer requisições para ele (porta 8001).
-#
-# SOLUÇÃO:
-#   Adicionar o middleware de CORS do FastAPI.
-#
-# ARQUIVO: services/user-service/main.py
-# SUBSTITUA o conteúdo INTEIRO por:
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
