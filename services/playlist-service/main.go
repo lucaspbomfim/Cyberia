@@ -1,19 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// CORREÇÃO NECESSÁRIA: main.go do playlist-service
-//
-// PROBLEMA:
-//   O playlist-service (Go/Gin) não tem CORS configurado.
-//   O navegador vai bloquear as requisições do frontend.
-//
-// SOLUÇÃO:
-//   Adicionar middleware de CORS do Gin.
-//   Primeiro, adicione a dependência no terminal:
-//     cd services/playlist-service
-//     go get github.com/gin-contrib/cors
-//
-// ARQUIVO: services/playlist-service/main.go
-// SUBSTITUA o conteúdo INTEIRO por:
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 package main
 
