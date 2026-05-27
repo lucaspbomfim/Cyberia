@@ -10,7 +10,7 @@ Cada um ficou com um serviço. O frontend consome os três via REST.
 |--------|-----------------|
 | Lucas | Music Service + Frontend |
 | Arthur | User Service |
-| Paulo | Playlist Service |
+| Paulo | Playlist Service + Frontend |
 
 ## Stack
 
