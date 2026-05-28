@@ -20,7 +20,15 @@ function HomePage({ userId, onLogout }) {
 
   // Estado das músicas
   const [songs, setSongs]       = useState([]);
-  const [currentSong, setCurrentSong] = useState(null);
+
+  // Fila de reprodução: queue = músicas na ordem da lista/playlist ativa,
+  // currentIndex = posição tocando agora (-1 = nada tocando)
+  const [queue, setQueue]               = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(-1);
+  const currentSong = currentIndex >= 0 ? queue[currentIndex] ?? null : null;
+  const nextSong    = currentIndex >= 0 && currentIndex + 1 < queue.length
+    ? queue[currentIndex + 1]
+    : null;
 
   // Estado de upload
   const [uploadTitle, setUploadTitle]   = useState('');
@@ -51,6 +59,32 @@ function HomePage({ userId, onLogout }) {
       const s = await getUserStats(userId);
       setStats(s);
     } catch (_) {}
+  }
+
+  // ─── PLAYER / FILA ────────────────────────────────────────────────────────────
+
+  // Toca a partir de uma lista (lista de músicas ou playlist), definindo a fila
+  function playSong(list, index) {
+    setQueue(list);
+    setCurrentIndex(index);
+  }
+
+  // Ao terminar a música, avança para a próxima. No fim da fila, para (sem loop).
+  function handleEnded() {
+    if (currentIndex + 1 < queue.length) setCurrentIndex(i => i + 1);
+  }
+
+  function playNext() {
+    if (currentIndex + 1 < queue.length) setCurrentIndex(i => i + 1);
+  }
+
+  function playPrev() {
+    if (currentIndex > 0) setCurrentIndex(i => i - 1);
+  }
+
+  function closePlayer() {
+    setQueue([]);
+    setCurrentIndex(-1);
   }
 
   // ─── MÚSICAS ────────────────────────────────────────────────────────────────
@@ -100,7 +134,7 @@ function HomePage({ userId, onLogout }) {
     try {
       await deleteSong(id);
       setSongs(prev => prev.filter(s => s.id !== id));
-      if (currentSong?.id === id) setCurrentSong(null);
+      if (currentSong?.id === id) closePlayer();
     } catch (err) {
       setError(err.message);
     }
@@ -236,7 +270,7 @@ function HomePage({ userId, onLogout }) {
               <h2 style={s.sectionTitle}>Suas músicas ({songs.length})</h2>
               {songs.length === 0 && <p style={s.empty}>Nenhuma música ainda.</p>}
               <ul style={s.list}>
-                {songs.map(song => (
+                {songs.map((song, idx) => (
                   <li key={song.id} style={s.item}>
                     <div style={s.itemInfo}>
                       <strong style={s.itemTitle}>{song.title}</strong>
@@ -245,7 +279,7 @@ function HomePage({ userId, onLogout }) {
                     <div style={s.itemActions}>
                       <button
                         style={s.playBtn}
-                        onClick={() => setCurrentSong(song)}
+                        onClick={() => playSong(songs, idx)}
                         title="Tocar"
                       >▶</button>
                       <button
@@ -321,7 +355,7 @@ function HomePage({ userId, onLogout }) {
                     <p style={s.empty}>Nenhuma música nesta playlist.</p>
                   )}
                   <ul style={s.list}>
-                    {selectedPlaylist.songs.map(song => (
+                    {selectedPlaylist.songs.map((song, idx) => (
                       <li key={song.id} style={s.item}>
                         <div style={s.itemInfo}>
                           <span style={s.itemPos}>#{song.position}</span>
@@ -331,7 +365,7 @@ function HomePage({ userId, onLogout }) {
                         <div style={s.itemActions}>
                           <button
                             style={s.playBtn}
-                            onClick={() => setCurrentSong(song)}
+                            onClick={() => playSong(selectedPlaylist.songs, idx)}
                           >▶</button>
                           <button
                             style={s.deleteBtn}
@@ -354,7 +388,14 @@ function HomePage({ userId, onLogout }) {
           <div style={s.playerInfo}>
             <span style={s.playerTitle}>{currentSong.title}</span>
             <span style={s.playerArtist}>{currentSong.artist}</span>
+            {nextSong && <span style={s.playerNext}>próxima: {nextSong.title}</span>}
           </div>
+          <button
+            style={s.navBtn}
+            onClick={playPrev}
+            disabled={currentIndex <= 0}
+            title="Anterior"
+          >⏮</button>
           {/* O elemento <audio> usa a URL de streaming do music-service */}
           <audio
             controls
@@ -362,8 +403,15 @@ function HomePage({ userId, onLogout }) {
             style={s.audioEl}
             src={getStreamUrl(currentSong.id)}
             key={currentSong.id} // força o React a recriar o elemento ao trocar música
+            onEnded={handleEnded}
           />
-          <button style={s.closePlayer} onClick={() => setCurrentSong(null)}>✕</button>
+          <button
+            style={s.navBtn}
+            onClick={playNext}
+            disabled={!nextSong}
+            title="Próxima"
+          >⏭</button>
+          <button style={s.closePlayer} onClick={closePlayer}>✕</button>
         </div>
       )}
     </div>
@@ -410,6 +458,8 @@ const s = {
   playerInfo: { display: 'flex', flexDirection: 'column', minWidth: '160px' },
   playerTitle: { color: '#fff', fontWeight: 'bold' },
   playerArtist: { color: '#888', fontSize: '13px' },
+  playerNext: { color: '#7c3aed', fontSize: '12px', marginTop: '2px' },
+  navBtn: { background: 'none', border: '1px solid #444', color: '#ccc', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', fontSize: '14px' },
   audioEl: { flex: 1 },
   closePlayer: { background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '18px' },
 };
