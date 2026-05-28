@@ -10,6 +10,15 @@ type Playlist struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// PlaylistSummary é o retorno do GET /playlists — inclui a contagem de músicas
+type PlaylistSummary struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	UserID    int       `json:"user_id"`
+	SongCount int       `json:"song_count"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // PlaylistSong representa uma música dentro de uma playlist
 type PlaylistSong struct {
 	PlaylistID int `json:"playlist_id"`

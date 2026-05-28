@@ -56,23 +56,25 @@ func createPlaylist(c *gin.Context) {
 func listPlaylists(c *gin.Context) {
 	userIDStr := c.Query("user_id")
 
+	const baseQuery = `
+		SELECT p.id, p.name, p.user_id, p.created_at, COUNT(ps.song_id) AS song_count
+		FROM playlists p
+		LEFT JOIN playlist_songs ps ON ps.playlist_id = p.id`
+
 	var (
 		rows *sql.Rows
 		err  error
 	)
 
 	if userIDStr != "" {
-		uid, err := strconv.Atoi(userIDStr)
-		if err != nil || uid < 1 {
+		uid, convErr := strconv.Atoi(userIDStr)
+		if convErr != nil || uid < 1 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "user_id inválido"})
 			return
 		}
-		rows, err = db.Query(
-			"SELECT id, name, user_id, created_at FROM playlists WHERE user_id = ? ORDER BY id",
-			uid,
-		)
+		rows, err = db.Query(baseQuery+" WHERE p.user_id = ? GROUP BY p.id ORDER BY p.id", uid)
 	} else {
-		rows, err = db.Query("SELECT id, name, user_id, created_at FROM playlists ORDER BY id")
+		rows, err = db.Query(baseQuery + " GROUP BY p.id ORDER BY p.id")
 	}
 
 	if err != nil {
@@ -81,10 +83,10 @@ func listPlaylists(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	playlists := []Playlist{}
+	playlists := []PlaylistSummary{}
 	for rows.Next() {
-		var p Playlist
-		rows.Scan(&p.ID, &p.Name, &p.UserID, &p.CreatedAt)
+		var p PlaylistSummary
+		rows.Scan(&p.ID, &p.Name, &p.UserID, &p.CreatedAt, &p.SongCount)
 		playlists = append(playlists, p)
 	}
 
