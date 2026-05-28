@@ -10,10 +10,17 @@
 import React, { useState, useEffect } from 'react';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
+import DataRain from './components/DataRain';
+import CrtFilter from './components/CrtFilter';
+import CrtToggle from './components/CrtToggle';
+import BootSequence from './components/BootSequence';
 
 function App() {
   // Estado de autenticação: guarda o user_id e token
   const [auth, setAuth] = useState(null);
+
+  // Modo CRT (warp + efeitos pesados). Default ligado; persistido em localStorage.
+  const [crtOn, setCrtOn] = useState(() => localStorage.getItem('crt_mode') !== 'off');
 
   // Ao iniciar, verifica se já existe um login salvo no navegador
   useEffect(() => {
@@ -38,13 +45,25 @@ function App() {
     setAuth(null);
   }
 
-  // Se não está logado, mostra a tela de login
-  if (!auth) {
-    return <LoginPage onLogin={handleLogin} />;
-  }
-
-  // Se está logado, mostra a tela principal
-  return <HomePage userId={auth.userId} onLogout={handleLogout} />;
+  return (
+    <>
+      <CrtFilter />
+      <DataRain />
+      {/* Tela do tubo: recebe o warp via filter quando crt-on. O conteudo do app
+          (login/home) vive aqui dentro. O player sai daqui via portal pra nao borrar. */}
+      <div className={crtOn ? 'crt-screen crt-on' : 'crt-screen'}>
+        <div className="app-content">
+          {!auth
+            ? <LoginPage onLogin={handleLogin} />
+            : <HomePage userId={auth.userId} onLogout={handleLogout} />}
+        </div>
+      </div>
+      {/* Scanlines + VHS + flicker + roll + vignette/glare: fora do warp, sempre nitido. */}
+      <div className={crtOn ? 'crt-overlay crt-on' : 'crt-overlay'} />
+      <CrtToggle value={crtOn} onChange={setCrtOn} />
+      <BootSequence />
+    </>
+  );
 }
 
 export default App;

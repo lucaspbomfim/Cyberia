@@ -7,11 +7,29 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getSongs, uploadSong, deleteSong, getStreamUrl,
   getPlaylists, getPlaylist, createPlaylist, addSongToPlaylist, removeSongFromPlaylist,
   getUser, getUserStats,
 } from '../api';
+import {
+  IconLogo, IconPlay, IconPause, IconPrev, IconNext, IconClose, IconTrash, IconVolume,
+} from '../components/Icons';
+
+// Barra de titulo Win9x/WMP decorativa (dots _ □ x sem funcao).
+function Titlebar({ title }) {
+  return (
+    <div className="win-titlebar">
+      <span className="win-title">{title}</span>
+      <span className="win-controls" aria-hidden="true">
+        <span className="win-dot">_</span>
+        <span className="win-dot">{'□'}</span>
+        <span className="win-dot">{'×'}</span>
+      </span>
+    </div>
+  );
+}
 
 function HomePage({ userId, onLogout }) {
   const [tab, setTab]           = useState('songs');
@@ -30,6 +48,13 @@ function HomePage({ userId, onLogout }) {
     ? queue[currentIndex + 1]
     : null;
 
+  // Estado de apresentação do player (não altera a fila nem a API)
+  const audioRef = useRef(null);
+  const [isPlaying, setIsPlaying]     = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration]       = useState(0);
+  const [volume, setVolume]           = useState(1);
+
   // Estado de upload
   const [uploadTitle, setUploadTitle]   = useState('');
   const [uploadArtist, setUploadArtist] = useState('');
@@ -44,6 +69,13 @@ function HomePage({ userId, onLogout }) {
   const [addingSongId, setAddingSongId]         = useState('');
 
   const [error, setError] = useState('');
+
+  // Relogio mono no header (apresentacao apenas)
+  const [clock, setClock] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setClock(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Carrega dados iniciais
   useEffect(() => {
@@ -85,6 +117,32 @@ function HomePage({ userId, onLogout }) {
   function closePlayer() {
     setQueue([]);
     setCurrentIndex(-1);
+  }
+
+  // Transporte custom: controla o elemento <audio> via ref (só apresentação)
+  function togglePlay() {
+    const a = audioRef.current;
+    if (!a) return;
+    if (a.paused) a.play(); else a.pause();
+  }
+
+  function handleSeek(e) {
+    const t = Number(e.target.value);
+    if (audioRef.current) audioRef.current.currentTime = t;
+    setCurrentTime(t);
+  }
+
+  function handleVolume(e) {
+    const v = Number(e.target.value);
+    setVolume(v);
+    if (audioRef.current) audioRef.current.volume = v;
+  }
+
+  function formatTime(secs) {
+    if (!secs || isNaN(secs)) return '0:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
   }
 
   // ─── MÚSICAS ────────────────────────────────────────────────────────────────
@@ -196,48 +254,56 @@ function HomePage({ userId, onLogout }) {
   // ─── RENDER ──────────────────────────────────────────────────────────────────
 
   return (
-    <div style={s.container}>
-      {/* Header */}
-      <header style={s.header}>
-        <span style={s.logo}>🎵 Cyberia</span>
-        <div style={s.headerRight}>
-          {user && <span style={s.username}>{user.name}</span>}
+    <div className="home-container">
+      {/* Header — menu/title bar */}
+      <header className="home-header">
+        <span className="home-logo">
+          <IconLogo size={22} />
+          <span className="logo-text">CYBERIA</span>
+          <span className="home-session">// wired session</span>
+        </span>
+        <div className="home-header-right">
+          <span className="home-online"><span className="home-led" />online</span>
+          <span className="home-clock">{clock.toLocaleTimeString('pt-BR', { hour12: false })}</span>
+          {user && <span className="home-username">{user.name}</span>}
           {stats && (
-            <span style={s.stats}>
+            <span className="home-stats">
               {stats.total_songs} músicas · {stats.total_playlists} playlists
             </span>
           )}
-          <button style={s.logoutBtn} onClick={onLogout}>Sair</button>
+          <button className="btn-ghost" onClick={onLogout}>Sair</button>
         </div>
       </header>
 
       {/* Tabs */}
-      <div style={s.tabs}>
-        <button style={tab === 'songs' ? s.tabActive : s.tab} onClick={() => setTab('songs')}>
+      <div className="tabs">
+        <button className={tab === 'songs' ? 'tab active' : 'tab'} onClick={() => setTab('songs')}>
           Músicas
         </button>
-        <button style={tab === 'playlists' ? s.tabActive : s.tab} onClick={() => setTab('playlists')}>
+        <button className={tab === 'playlists' ? 'tab active' : 'tab'} onClick={() => setTab('playlists')}>
           Playlists
         </button>
       </div>
 
       {error && (
-        <div style={s.errorBanner}>
-          {error}
-          <button onClick={() => setError('')} style={s.closeBtn}>✕</button>
+        <div className="error-banner">
+          <span>{error}</span>
+          <button onClick={() => setError('')} className="error-close" title="Fechar">
+            <IconClose size={16} />
+          </button>
         </div>
       )}
 
-      <main style={s.main}>
+      <main className="home-main">
         {/* ── TAB: MÚSICAS ── */}
         {tab === 'songs' && (
           <div>
             {/* Formulário de upload */}
-            <section style={s.section}>
-              <h2 style={s.sectionTitle}>Enviar música</h2>
-              <form onSubmit={handleUpload} style={s.uploadForm}>
+            <section className="section win-panel">
+              <Titlebar title="UPLOAD.EXE" />
+              <form onSubmit={handleUpload} className="upload-form win-body">
                 <input
-                  style={s.input}
+                  className="input"
                   type="text"
                   placeholder="Título *"
                   value={uploadTitle}
@@ -245,48 +311,48 @@ function HomePage({ userId, onLogout }) {
                   required
                 />
                 <input
-                  style={s.input}
+                  className="input"
                   type="text"
                   placeholder="Artista (opcional)"
                   value={uploadArtist}
                   onChange={e => setUploadArtist(e.target.value)}
                 />
                 <input
-                  style={s.input}
+                  className="input"
                   type="file"
                   accept=".mp3,.wav,.ogg,.flac"
                   onChange={e => setUploadFile(e.target.files[0])}
                   required
                 />
-                {uploadError && <p style={s.error}>{uploadError}</p>}
-                <button type="submit" style={s.btn} disabled={uploading}>
+                {uploadError && <p className="field-error">{uploadError}</p>}
+                <button type="submit" className="btn-primary" disabled={uploading}>
                   {uploading ? 'Enviando...' : 'Enviar'}
                 </button>
               </form>
             </section>
 
             {/* Lista de músicas */}
-            <section style={s.section}>
-              <h2 style={s.sectionTitle}>Suas músicas ({songs.length})</h2>
-              {songs.length === 0 && <p style={s.empty}>Nenhuma música ainda.</p>}
-              <ul style={s.list}>
+            <section className="section">
+              <h2 className="section-title">Suas músicas ({songs.length})</h2>
+              {songs.length === 0 && <p className="empty">▓▒░ nenhuma música ainda</p>}
+              <ul className="list">
                 {songs.map((song, idx) => (
-                  <li key={song.id} style={s.item}>
-                    <div style={s.itemInfo}>
-                      <strong style={s.itemTitle}>{song.title}</strong>
-                      <span style={s.itemSub}>{song.artist}</span>
+                  <li key={song.id} className="card">
+                    <div className="card-info">
+                      <strong className="card-title">{song.title}</strong>
+                      <span className="card-sub">{song.artist}</span>
                     </div>
-                    <div style={s.itemActions}>
+                    <div className="card-actions">
                       <button
-                        style={s.playBtn}
+                        className="icon-btn play"
                         onClick={() => playSong(songs, idx)}
                         title="Tocar"
-                      >▶</button>
+                      ><IconPlay size={16} /></button>
                       <button
-                        style={s.deleteBtn}
+                        className="icon-btn danger"
                         onClick={() => handleDeleteSong(song.id)}
                         title="Remover"
-                      >🗑</button>
+                      ><IconTrash size={16} /></button>
                     </div>
                   </li>
                 ))}
@@ -297,45 +363,49 @@ function HomePage({ userId, onLogout }) {
 
         {/* ── TAB: PLAYLISTS ── */}
         {tab === 'playlists' && (
-          <div style={s.playlistLayout}>
+          <div className="playlist-layout">
             {/* Coluna esquerda: lista de playlists */}
-            <div style={s.playlistSidebar}>
-              <h2 style={s.sectionTitle}>Playlists</h2>
-              <form onSubmit={handleCreatePlaylist} style={s.createForm}>
+            <div className="playlist-sidebar win-panel">
+              <Titlebar title="PLAYLISTS.DB" />
+              <div className="win-body">
+              <form onSubmit={handleCreatePlaylist} className="create-form">
                 <input
-                  style={s.input}
+                  className="input"
                   type="text"
                   placeholder="Nome da playlist"
                   value={newPlaylistName}
                   onChange={e => setNewPlaylistName(e.target.value)}
                   required
                 />
-                <button type="submit" style={s.btn}>Criar</button>
+                <button type="submit" className="btn-primary">Criar</button>
               </form>
-              <ul style={s.list}>
+              {playlists.length === 0 && <p className="empty">░ vazio</p>}
+              <ul className="list">
                 {playlists.map(pl => (
                   <li
                     key={pl.id}
-                    style={selectedPlaylist?.id === pl.id ? s.playlistItemActive : s.playlistItem}
+                    className={selectedPlaylist?.id === pl.id ? 'playlist-item active' : 'playlist-item'}
                     onClick={() => handleSelectPlaylist(pl.id)}
                   >
                     {pl.name}
                   </li>
                 ))}
               </ul>
+              </div>
             </div>
 
             {/* Coluna direita: detalhe da playlist */}
-            <div style={s.playlistDetail}>
+            <div className="playlist-detail">
               {!selectedPlaylist ? (
-                <p style={s.empty}>Selecione uma playlist para ver as músicas.</p>
+                <p className="empty win-panel win-empty">▓▒░ selecione uma playlist para ver as músicas</p>
               ) : (
-                <>
-                  <h2 style={s.sectionTitle}>{selectedPlaylist.name}</h2>
+                <div className="win-panel">
+                  <Titlebar title={selectedPlaylist.name} />
+                  <div className="win-body">
                   {/* Adicionar música à playlist */}
-                  <form onSubmit={handleAddSong} style={s.createForm}>
+                  <form onSubmit={handleAddSong} className="create-form">
                     <select
-                      style={s.input}
+                      className="input"
                       value={addingSongId}
                       onChange={e => setAddingSongId(e.target.value)}
                       required
@@ -347,121 +417,146 @@ function HomePage({ userId, onLogout }) {
                         </option>
                       ))}
                     </select>
-                    <button type="submit" style={s.btn}>Adicionar</button>
+                    <button type="submit" className="btn-primary">Adicionar</button>
                   </form>
 
                   {/* Músicas da playlist */}
                   {selectedPlaylist.songs.length === 0 && (
-                    <p style={s.empty}>Nenhuma música nesta playlist.</p>
+                    <p className="empty">▓▒░ nenhuma música nesta playlist</p>
                   )}
-                  <ul style={s.list}>
+                  <ul className="list">
                     {selectedPlaylist.songs.map((song, idx) => (
-                      <li key={song.id} style={s.item}>
-                        <div style={s.itemInfo}>
-                          <span style={s.itemPos}>#{song.position}</span>
-                          <strong style={s.itemTitle}>{song.title}</strong>
-                          <span style={s.itemSub}>{song.artist}</span>
+                      <li key={song.id} className="card">
+                        <div className="card-info">
+                          <span className="card-pos">#{song.position}</span>
+                          <strong className="card-title">{song.title}</strong>
+                          <span className="card-sub">{song.artist}</span>
                         </div>
-                        <div style={s.itemActions}>
+                        <div className="card-actions">
                           <button
-                            style={s.playBtn}
+                            className="icon-btn play"
                             onClick={() => playSong(selectedPlaylist.songs, idx)}
-                          >▶</button>
+                            title="Tocar"
+                          ><IconPlay size={16} /></button>
                           <button
-                            style={s.deleteBtn}
+                            className="icon-btn danger"
                             onClick={() => handleRemoveSongFromPlaylist(song.id)}
-                          >✕</button>
+                            title="Remover"
+                          ><IconClose size={16} /></button>
                         </div>
                       </li>
                     ))}
                   </ul>
-                </>
+                  </div>
+                </div>
               )}
             </div>
           </div>
         )}
       </main>
 
-      {/* Player fixo na parte inferior */}
-      {currentSong && (
-        <div style={s.player}>
-          <div style={s.playerInfo}>
-            <span style={s.playerTitle}>{currentSong.title}</span>
-            <span style={s.playerArtist}>{currentSong.artist}</span>
-            {nextSong && <span style={s.playerNext}>próxima: {nextSong.title}</span>}
+      {/* Player fixo na parte inferior — skin WMP.
+          Via portal pra document.body: fora de .crt-screen o filter nao transforma
+          o position:fixed em relativo nem borra o backdrop-filter. Todo o estado
+          e os handlers continuam aqui no HomePage. */}
+      {currentSong && createPortal(
+        <div className={isPlaying ? 'player' : 'player paused'}>
+          <div className="win-titlebar player-titlebar">
+            <span className="win-title">NOW_PLAYING.WMP</span>
+            <span className="win-controls" aria-hidden="true">
+              <span className="win-dot">_</span>
+              <span className="win-dot">{'□'}</span>
+              <span className="win-dot">{'×'}</span>
+            </span>
           </div>
-          <button
-            style={s.navBtn}
-            onClick={playPrev}
-            disabled={currentIndex <= 0}
-            title="Anterior"
-          >⏮</button>
-          {/* O elemento <audio> usa a URL de streaming do music-service */}
-          <audio
-            controls
-            autoPlay
-            style={s.audioEl}
-            src={getStreamUrl(currentSong.id)}
-            key={currentSong.id} // força o React a recriar o elemento ao trocar música
-            onEnded={handleEnded}
-          />
-          <button
-            style={s.navBtn}
-            onClick={playNext}
-            disabled={!nextSong}
-            title="Próxima"
-          >⏭</button>
-          <button style={s.closePlayer} onClick={closePlayer}>✕</button>
-        </div>
+
+          <div className="player-body">
+            {/* visualizer / album art */}
+            <div className="player-art">
+              <span className="viz-bar" />
+              <span className="viz-bar" />
+              <span className="viz-bar" />
+              <span className="viz-bar" />
+            </div>
+
+            <div className="player-main">
+              <div className="player-info">
+                <span className="player-title">{currentSong.title}</span>
+                <span className="player-artist">{currentSong.artist}</span>
+                {nextSong && <span className="player-next">next: {nextSong.title}</span>}
+              </div>
+              <div className="player-progress-row">
+                <span className="player-time">
+                  {formatTime(currentTime)}<span className="sep">/</span>{formatTime(duration)}
+                </span>
+                <input
+                  className="slider player-progress"
+                  type="range"
+                  min="0"
+                  max={duration || 0}
+                  step="0.1"
+                  value={currentTime}
+                  onChange={handleSeek}
+                />
+              </div>
+            </div>
+
+            <div className="player-controls">
+              <button
+                className="transport-btn"
+                onClick={playPrev}
+                disabled={currentIndex <= 0}
+                title="Anterior"
+              ><IconPrev size={16} /></button>
+              <button
+                className="transport-btn play"
+                onClick={togglePlay}
+                title={isPlaying ? 'Pausar' : 'Tocar'}
+              >{isPlaying ? <IconPause size={18} /> : <IconPlay size={18} />}</button>
+              <button
+                className="transport-btn"
+                onClick={playNext}
+                disabled={!nextSong}
+                title="Próxima"
+              ><IconNext size={16} /></button>
+            </div>
+
+            <div className="player-volume">
+              <IconVolume size={16} />
+              <input
+                className="slider volume"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={volume}
+                onChange={handleVolume}
+              />
+            </div>
+
+            {/* O elemento <audio> usa a URL de streaming do music-service */}
+            <audio
+              ref={audioRef}
+              className="hidden-audio"
+              autoPlay
+              src={getStreamUrl(currentSong.id)}
+              key={currentSong.id} // força o React a recriar o elemento ao trocar música
+              onEnded={handleEnded}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onLoadedMetadata={e => { setDuration(e.target.duration); setCurrentTime(0); e.target.volume = volume; }}
+              onTimeUpdate={e => setCurrentTime(e.target.currentTime)}
+            />
+
+            <button className="player-close" onClick={closePlayer} title="Fechar">
+              <IconClose size={18} />
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 }
-
-const s = {
-  container: { minHeight: '100vh', background: '#0f0f0f', color: '#e5e5e5', fontFamily: 'sans-serif', paddingBottom: '100px' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #222', background: '#111' },
-  logo: { fontSize: '20px', fontWeight: 'bold', color: '#fff' },
-  headerRight: { display: 'flex', alignItems: 'center', gap: '16px' },
-  username: { color: '#ccc' },
-  stats: { color: '#666', fontSize: '13px' },
-  logoutBtn: { background: 'none', border: '1px solid #444', color: '#aaa', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' },
-  tabs: { display: 'flex', gap: '0', borderBottom: '1px solid #222', padding: '0 24px' },
-  tab: { background: 'none', border: 'none', color: '#888', padding: '14px 20px', cursor: 'pointer', fontSize: '15px', borderBottom: '2px solid transparent' },
-  tabActive: { background: 'none', border: 'none', color: '#fff', padding: '14px 20px', cursor: 'pointer', fontSize: '15px', borderBottom: '2px solid #7c3aed' },
-  errorBanner: { background: '#450a0a', color: '#fca5a5', padding: '12px 24px', display: 'flex', justifyContent: 'space-between' },
-  closeBtn: { background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer' },
-  main: { padding: '24px' },
-  section: { marginBottom: '32px' },
-  sectionTitle: { color: '#fff', marginBottom: '16px', fontSize: '18px' },
-  uploadForm: { display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-start' },
-  createForm: { display: 'flex', gap: '10px', marginBottom: '16px' },
-  input: { background: '#1e1e1e', border: '1px solid #333', borderRadius: '8px', color: '#fff', padding: '10px 14px', fontSize: '14px' },
-  btn: { background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 18px', cursor: 'pointer', whiteSpace: 'nowrap' },
-  error: { color: '#f87171', fontSize: '13px', margin: '0', width: '100%' },
-  empty: { color: '#555' },
-  list: { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' },
-  item: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '12px 16px' },
-  itemInfo: { display: 'flex', gap: '12px', alignItems: 'center' },
-  itemPos: { color: '#555', fontSize: '13px', minWidth: '24px' },
-  itemTitle: { color: '#fff' },
-  itemSub: { color: '#888', fontSize: '13px' },
-  itemActions: { display: 'flex', gap: '8px' },
-  playBtn: { background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer' },
-  deleteBtn: { background: 'none', border: '1px solid #333', color: '#888', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer' },
-  playlistLayout: { display: 'flex', gap: '24px' },
-  playlistSidebar: { width: '280px', flexShrink: 0 },
-  playlistDetail: { flex: 1 },
-  playlistItem: { padding: '12px 16px', borderRadius: '8px', cursor: 'pointer', color: '#ccc', background: '#1a1a1a', marginBottom: '6px' },
-  playlistItemActive: { padding: '12px 16px', borderRadius: '8px', cursor: 'pointer', color: '#fff', background: '#2d1f5e', marginBottom: '6px', border: '1px solid #7c3aed' },
-  player: { position: 'fixed', bottom: 0, left: 0, right: 0, background: '#111', borderTop: '1px solid #333', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '20px', zIndex: 100 },
-  playerInfo: { display: 'flex', flexDirection: 'column', minWidth: '160px' },
-  playerTitle: { color: '#fff', fontWeight: 'bold' },
-  playerArtist: { color: '#888', fontSize: '13px' },
-  playerNext: { color: '#7c3aed', fontSize: '12px', marginTop: '2px' },
-  navBtn: { background: 'none', border: '1px solid #444', color: '#ccc', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', fontSize: '14px' },
-  audioEl: { flex: 1 },
-  closePlayer: { background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '18px' },
-};
 
 export default HomePage;

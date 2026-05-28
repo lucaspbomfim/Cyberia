@@ -9,6 +9,7 @@
 
 import React, { useState } from 'react';
 import { login, register } from '../api';
+import { IconLogo } from '../components/Icons';
 
 // "onLogin" é uma função passada pelo App.js para avisar que o usuário logou
 function LoginPage({ onLogin }) {
@@ -46,19 +47,29 @@ function LoginPage({ onLogin }) {
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>🎵 Cyberia</h1>
-        <p style={styles.subtitle}>
-          {mode === 'login' ? 'Faça login para continuar' : 'Crie sua conta'}
-        </p>
+    <div className="login-container">
+      <div className="login-card glass win-panel">
+        <div className="win-titlebar">
+          <span className="win-title">CYBERIA.SYS</span>
+          <span className="win-controls" aria-hidden="true">
+            <span className="win-dot">_</span>
+            <span className="win-dot">{'□'}</span>
+            <span className="win-dot">{'×'}</span>
+          </span>
+        </div>
+        <div className="win-body login-body">
+        <div className="login-logo">
+          <IconLogo size={30} />
+          <span className="logo-text">CYBERIA</span>
+        </div>
+        <p className="login-subtitle">connecting to the wired...</p>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
+        <form onSubmit={handleSubmit} className="login-form">
           {mode === 'register' && (
-            <div style={styles.field}>
-              <label style={styles.label}>Nome</label>
+            <div className="field">
+              <label className="label">Nome</label>
               <input
-                style={styles.input}
+                className="input"
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
@@ -68,10 +79,10 @@ function LoginPage({ onLogin }) {
             </div>
           )}
 
-          <div style={styles.field}>
-            <label style={styles.label}>Email</label>
+          <div className="field">
+            <label className="label">Email</label>
             <input
-              style={styles.input}
+              className="input"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -80,10 +91,10 @@ function LoginPage({ onLogin }) {
             />
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Senha</label>
+          <div className="field">
+            <label className="label">Senha</label>
             <input
-              style={styles.input}
+              className="input"
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -93,72 +104,27 @@ function LoginPage({ onLogin }) {
           </div>
 
           {/* Mensagem de erro vinda do servidor */}
-          {error && <p style={styles.error}>{error}</p>}
+          {error && <p className="field-error">{error}</p>}
 
-          <button type="submit" style={styles.button} disabled={loading}>
+          <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Aguarde...' : mode === 'login' ? 'Entrar' : 'Cadastrar'}
           </button>
         </form>
 
         {/* Alterna entre login e cadastro */}
-        <p style={styles.toggle}>
+        <p className="login-toggle">
           {mode === 'login' ? 'Não tem conta?' : 'Já tem conta?'}{' '}
           <span
-            style={styles.link}
+            className="login-link"
             onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}
           >
             {mode === 'login' ? 'Cadastrar' : 'Entrar'}
           </span>
         </p>
+        </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: '#0f0f0f',
-    fontFamily: 'sans-serif',
-  },
-  card: {
-    background: '#1a1a1a',
-    border: '1px solid #333',
-    borderRadius: '12px',
-    padding: '40px',
-    width: '100%',
-    maxWidth: '400px',
-  },
-  title: { color: '#fff', margin: '0 0 8px', fontSize: '28px', textAlign: 'center' },
-  subtitle: { color: '#888', marginBottom: '28px', textAlign: 'center' },
-  form: { display: 'flex', flexDirection: 'column', gap: '16px' },
-  field: { display: 'flex', flexDirection: 'column', gap: '6px' },
-  label: { color: '#ccc', fontSize: '14px' },
-  input: {
-    background: '#252525',
-    border: '1px solid #444',
-    borderRadius: '8px',
-    color: '#fff',
-    padding: '10px 14px',
-    fontSize: '16px',
-    outline: 'none',
-  },
-  button: {
-    background: '#7c3aed',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '12px',
-    fontSize: '16px',
-    cursor: 'pointer',
-    marginTop: '8px',
-  },
-  error: { color: '#f87171', fontSize: '14px', margin: 0 },
-  toggle: { color: '#888', textAlign: 'center', marginTop: '20px', marginBottom: 0 },
-  link: { color: '#7c3aed', cursor: 'pointer', textDecoration: 'underline' },
-};
 
 export default LoginPage;
