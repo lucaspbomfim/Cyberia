@@ -41,7 +41,7 @@ npm start
 ```bash
 cd services/playlist-service
 go mod download
-go run main.go
+go run .
 ```
 
 **Frontend**

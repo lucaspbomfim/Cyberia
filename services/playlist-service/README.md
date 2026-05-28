@@ -24,7 +24,7 @@ Serviço de criação e gerenciamento de playlists.
 
 ```bash
 go mod download
-go run main.go
+go run .
 ```
 
 Roda na porta `8003`.
