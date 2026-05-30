@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import requests
 from fastapi import APIRouter, HTTPException
@@ -6,6 +7,9 @@ from models import RegisterBody, LoginBody
 from auth import hash_password, verify_password, generate_token
 
 router = APIRouter()
+
+MUSIC_URL    = os.getenv("MUSIC_SERVICE_URL",    "http://localhost:8002")
+PLAYLIST_URL = os.getenv("PLAYLIST_SERVICE_URL", "http://localhost:8003")
 
 # ─── POST /register ───────────────────────────────────────────────────────────
 
@@ -85,7 +89,7 @@ def get_stats(user_id: int):
 
     try:
         music_response = requests.get(
-            f"http://localhost:8002/songs?user_id={user_id}",
+            f"{MUSIC_URL}/songs?user_id={user_id}",
             timeout=3
         )
         total_songs = len(music_response.json())
@@ -94,7 +98,7 @@ def get_stats(user_id: int):
 
     try:
         playlist_response = requests.get(
-            f"http://localhost:8003/playlists?user_id={user_id}",
+            f"{PLAYLIST_URL}/playlists?user_id={user_id}",
             timeout=3
         )
         total_playlists = len(playlist_response.json())

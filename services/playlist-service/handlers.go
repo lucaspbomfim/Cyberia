@@ -7,14 +7,22 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	userServiceURL  = "http://localhost:8001"
-	musicServiceURL = "http://localhost:8002"
+var (
+    userServiceURL  = getEnv("USER_SERVICE_URL", "http://localhost:8001")
+    musicServiceURL = getEnv("MUSIC_SERVICE_URL", "http://localhost:8002")
 )
+
+func getEnv(key, fallback string) string {
+    if value, ok := os.LookupEnv(key); ok {
+        return value
+    }
+    return fallback
+}
 
 // httpClient com timeout para não travar a aplicação
 var httpClient = &http.Client{Timeout: 3 * time.Second}
