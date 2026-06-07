@@ -9,7 +9,7 @@ Cada um ficou com um serviço. O frontend consome os três via REST.
 | Membro | Responsabilidade |
 |--------|-----------------|
 | Lucas | Music Service + Frontend |
-| Arthur | User Service |
+| Arthur | User Service + Deploy |
 | Paulo | Playlist Service + Frontend |
 
 ## Stack
